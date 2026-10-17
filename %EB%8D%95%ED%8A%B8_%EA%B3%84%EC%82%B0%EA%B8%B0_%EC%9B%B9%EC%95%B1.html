@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>덕트 계산기 | 산업환기</title>
+<style>
+:root{--navy:#123d70;--blue:#1677c8;--pale:#eef6ff;--green:#16875b;--line:#d8e2ef;--ink:#172b45;--muted:#64748b;--orange:#b45a00}
+*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:var(--ink);font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif}
+header{background:linear-gradient(115deg,#123d70,#1677c8);color:white;padding:24px 18px 28px}
+.wrap{max-width:1000px;margin:auto}header h1{margin:0 0 7px;font-size:clamp(24px,4vw,34px)}header p{margin:0;opacity:.9}
+main{max-width:1000px;margin:20px auto;padding:0 14px 40px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+button,.tab{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:11px 15px;font-weight:700}
+.tab{background:white;color:var(--navy);border:1px solid var(--line)}.tab.active{background:var(--navy);color:white}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.card{background:white;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 4px 14px #123d7009}
+h2{font-size:19px;margin:0 0 15px}.field{margin-bottom:13px}.field label{display:block;font-size:13px;color:#52647b;font-weight:700;margin-bottom:6px}
+input,select{width:100%;padding:11px 12px;border:1px solid #c8d5e5;border-radius:9px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:2px solid #9acbff;border-color:var(--blue)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.primary{background:var(--blue);color:#fff;width:100%;margin-top:4px}.secondary{background:#e8f1fb;color:var(--navy)}
+.results{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:var(--pale);border:1px solid #d5e9ff;border-radius:12px;padding:13px}.metric span{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}.metric strong{font-size:22px;overflow-wrap:anywhere}.metric small{font-size:12px;color:var(--muted)}
+.notice{margin-top:14px;padding:12px;border-radius:10px;background:#fff8e9;color:#7b4a00;font-size:13px;line-height:1.5}
+.formula{font-size:13px;line-height:1.7;background:#f8fafc;border:1px solid var(--line);padding:12px;border-radius:10px;margin-top:12px}
+.diagram{display:flex;align-items:center;justify-content:center;min-height:115px;background:#f8fbff;border-radius:12px;margin-bottom:14px}
+.diagram svg{width:100%;max-width:360px;height:110px}
+footer{text-align:center;color:var(--muted);font-size:12px;margin-top:20px}
+.hidden{display:none!important}
+@media(max-width:720px){.layout{grid-template-columns:1fr}header{padding-top:20px}.card{padding:15px}.results{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>덕트 계산기</h1><p>산업환기 · 원형/사각 덕트의 풍량, 풍속, 규격을 빠르게 계산합니다.</p></div></header>
+<main>
+<div class="tabs" role="tablist">
+<button class="tab active" data-mode="size">덕트 규격 계산</button>
+<button class="tab" data-mode="flow">풍량 계산</button>
+<button class="tab" data-mode="velocity">풍속 계산</button>
+</div>
+<div class="layout">
+<section class="card">
+<h2 id="inputTitle">입력 조건</h2>
+<div class="field"><label for="shape">덕트 형상</label><select id="shape"><option value="round">원형 덕트</option><option value="rect">사각 덕트</option></select></div>
+<div class="field"><label for="flow">풍량</label><div class="row"><input id="flow" type="number" min="0" step="any" value="150" aria-label="풍량 값"><select id="flowUnit" aria-label="풍량 단위"><option value="m3min">m³/min</option><option value="m3h">m³/h</option><option value="ls">L/s</option></select></div></div>
+<div class="field" id="velField"><label for="vel">목표 풍속 (m/s)</label><input id="vel" type="number" min="0" step="any" value="10"></div>
+<div class="row" id="dims">
+<div class="field"><label for="diam">직경 (mm)</label><input id="diam" type="number" min="0" step="any" value="200"></div>
+<div class="field hidden" id="heightField"><label for="height">덕트 높이 (mm)</label><input id="height" type="number" min="0" step="any" value="200"></div>
+<div class="field hidden" id="widthField"><label for="width">덕트 폭 (mm)</label><input id="width" type="number" min="0" step="any" value="300"></div>
+</div>
+<button class="primary" id="calc">계산하기</button>
+<button class="secondary" id="reset" style="width:100%;margin-top:8px">초기값으로</button>
+<div class="notice">이 계산기는 직선 덕트의 기본 관계식 Q = V × A를 이용한 학습·예비설계 도구입니다. 마찰손실, 엘보·댐퍼 손실, 후드 손실 및 법규 적합성은 별도 검토해야 합니다.</div>
+</section>
+<section class="card">
+<h2>계산 결과</h2>
+<div class="diagram">
+<svg viewBox="0 0 360 110" role="img" aria-label="덕트 단면 개념도">
+<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1677c8"/></marker></defs>
+<g id="roundDiagram"><circle cx="180" cy="54" r="37" fill="#e5f2ff" stroke="#1677c8" stroke-width="3"/><path d="M140 54 H220" stroke="#1677c8" stroke-width="2" marker-end="url(#arrow)"/><text x="180" y="104" text-anchor="middle" fill="#123d70" font-size="12">원형 단면</text></g>
+<g id="rectDiagram" class="hidden"><rect x="112" y="22" width="136" height="64" rx="2" fill="#e5f2ff" stroke="#1677c8" stroke-width="3"/><path d="M125 54 H232" stroke="#1677c8" stroke-width="2" marker-end="url(#arrow)"/><text x="180" y="104" text-anchor="middle" fill="#123d70" font-size="12">사각 단면</text></g>
+</svg>
+</div>
+<div class="results">
+<div class="metric"><span id="r1label">필요 직경</span><strong id="r1">—</strong><small id="r1unit">mm</small></div>
+<div class="metric"><span id="r2label">실제 풍속</span><strong id="r2">—</strong><small id="r2unit">m/s</small></div>
+<div class="metric"><span id="r3label">단면적</span><strong id="r3">—</strong><small id="r3unit">m²</small></div>
+<div class="metric"><span id="r4label">환산 풍량</span><strong id="r4">—</strong><small id="r4unit">m³/min</small></div>
+</div>
+<div class="formula"><b>사용 공식</b><div id="formulaText">Q = V × A, 원형 덕트 A = πD²/4</div><div id="workText">입력값을 확인한 후 계산하기를 누르세요.</div></div>
+<div id="message" role="status" style="margin-top:12px;color:#52647b;font-size:13px"></div>
+</section>
+</div>
+<footer>덕트 계산기 · 단위는 SI 기준 · 계산 결과는 설계 검토용 참고값입니다.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let mode='size';
+const fmt=(n,d=2)=>Number.isFinite(n)?n.toLocaleString('ko-KR',{maximumFractionDigits:d}):'—';
+function qSI(){const q=Number($('flow').value);const u=$('flowUnit').value;return u==='m3min'?q/60:u==='m3h'?q/3600:q/1000;}
+function setQ(q){const u=$('flowUnit').value;$('flow').value=u==='m3min'?q*60:u==='m3h'?q*3600:q*1000;}
+function updateUI(){
+ const rect=$('shape').value==='rect';
+ $('diam').parentElement.parentElement.classList.toggle('hidden',rect);
+ $('heightField').classList.toggle('hidden',!rect);
+ $('widthField').classList.toggle('hidden',!rect);
+ $('roundDiagram').classList.toggle('hidden',rect);$('rectDiagram').classList.toggle('hidden',!rect);
+ $('velField').classList.toggle('hidden',mode==='velocity');
+ $('dims').classList.toggle('hidden',mode==='size');
+ $('inputTitle').textContent=mode==='size'?'입력 조건 · 풍량과 목표 풍속':mode==='flow'?'입력 조건 · 덕트 크기와 풍속':'입력 조건 · 풍량과 덕트 크기';
+ $('r1label').textContent=mode==='size'?'계산 덕트 규격':mode==='flow'?'풍량':'계산 풍속';
+ $('r1unit').textContent=mode==='size'?'mm':mode==='flow'?'m³/min':'m/s';
+ $('r2label').textContent=mode==='size'?'선정 규격 실제 풍속':mode==='flow'?'환산 풍량':'덕트 단면적';
+ $('r2unit').textContent=mode==='size'?'m/s':mode==='flow'?'m³/h':'m²';
+ $('r3label').textContent='단면적';$('r3unit').textContent='m²';
+ $('r4label').textContent='풍량';$('r4unit').textContent='m³/min';
+}
+function calculate(){
+ const rect=$('shape').value==='rect';
+ const q=qSI(),v=Number($('vel').value);
+ let A=0,V=0,dim=0,work='',formula='';
+ if(mode==='size'){
+   if(!(q>0&&v>0)){showError('풍량과 목표 풍속은 0보다 큰 값을 입력하세요.');return;}
+   A=q/v;
+   if(rect){
+     const ratio=Number($('width').value)/Number($('height').value);
+     if(!(ratio>0)){showError('사각 덕트 폭과 높이를 올바르게 입력하세요.');return;}
+     const h=Math.sqrt(A/ratio),w=h*ratio;V=q/A;
+     $('r1').textContent=fmt(w*1000,0)+' × '+fmt(h*1000,0);$('r1unit').textContent='폭 × 높이 (mm)';
+     $('r2').textContent=fmt(V);$('r2unit').textContent='m/s';
+     work=`필요 단면적 A = Q/V = ${fmt(q,4)} / ${fmt(v)} = ${fmt(A,5)} m². 폭/높이 비율 ${fmt(ratio)}를 적용한 이론 치수입니다.`;
+     formula='Q = V × A, 사각 덕트 A = 폭 × 높이';
+   }else{
+     dim=Math.sqrt(4*A/Math.PI);V=q/(Math.PI*dim*dim/4);
+     $('r1').textContent=fmt(dim*1000,1);$('r1unit').textContent='mm (이론 직경)';
+     $('r2').textContent=fmt(V);$('r2unit').textContent='m/s';
+     work=`A = Q/V = ${fmt(q,4)} / ${fmt(v)} = ${fmt(A,5)} m². D = √(4A/π) = ${fmt(dim*1000,1)} mm.`;
+     formula='Q = V × A, 원형 덕트 A = πD²/4';
+   }
+   $('r3').textContent=fmt(A,5);$('r4').textContent=fmt(q*60);
+ }else if(mode==='flow'){
+   if(rect){const w=Number($('width').value)/1000,h=Number($('height').value)/1000;if(!(w>0&&h>0&&v>0)){showError('폭·높이·풍속을 0보다 크게 입력하세요.');return;}A=w*h;}
+   else{const d=Number($('diam').value)/1000;if(!(d>0&&v>0)){showError('직경과 풍속을 0보다 크게 입력하세요.');return;}A=Math.PI*d*d/4;}
+   V=v;q=V*A;setQ(q);$('r1').textContent=fmt(q*60);$('r2').textContent=fmt(q*3600);$('r3').textContent=fmt(A,5);$('r4').textContent=fmt(q*60);
+   formula='Q = V × A';work=`Q = ${fmt(V)} m/s × ${fmt(A,5)} m² = ${fmt(q,5)} m³/s = ${fmt(q*60)} m³/min.`;
+ }else{
+   if(!(q>0)){showError('풍량은 0보다 큰 값을 입력하세요.');return;}
+   if(rect){const w=Number($('width').value)/1000,h=Number($('height').value)/1000;if(!(w>0&&h>0)){showError('폭과 높이를 0보다 크게 입력하세요.');return;}A=w*h;}
+   else{const d=Number($('diam').value)/1000;if(!(d>0)){showError('직경을 0보다 크게 입력하세요.');return;}A=Math.PI*d*d/4;}
+   V=q/A;$('r1').textContent=fmt(V);$('r2').textContent=fmt(q*60);$('r3').textContent=fmt(A,5);$('r4').textContent=fmt(q*60);
+   formula='V = Q/A';work=`V = ${fmt(q,5)} m³/s ÷ ${fmt(A,5)} m² = ${fmt(V)} m/s.`;
+ }
+ $('formulaText').textContent=formula;$('workText').textContent=work;$('message').textContent='계산 완료 · 실제 시공 시 상용 규격과 설계 기준을 확인하세요.';
+}
+function showError(msg){$('message').textContent=msg;$('message').style.color='#b42318';}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));$('message').style.color='#52647b';updateUI();calculate();}));
+$('shape').addEventListener('change',()=>{updateUI();calculate();});
+$('calc').addEventListener('click',()=>{ $('message').style.color='#52647b';calculate();});
+$('reset').addEventListener('click',()=>{$('flow').value=150;$('flowUnit').value='m3min';$('vel').value=10;$('diam').value=200;$('height').value=200;$('width').value=300;$('shape').value='round';mode='size';document.querySelectorAll('.tab').forEach((x,i)=>x.classList.toggle('active',i===0));updateUI();calculate();});
+updateUI();calculate();
+</script>
+</body></html>
